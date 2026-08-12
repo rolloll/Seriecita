@@ -10,6 +10,7 @@
   let debounceTimer = null;
   let toggleButton = null;
   let filterChip = null;
+  let updateBanner = null;
   let authorFilter = null;
   const expandedKeys = new Set();
 
@@ -335,6 +336,23 @@
     document.body.appendChild(toggleButton);
   }
 
+  function renderUpdateBanner(info) {
+    if (!info) {
+      updateBanner?.remove();
+      updateBanner = null;
+      return;
+    }
+    if (!updateBanner) {
+      updateBanner = document.createElement('a');
+      updateBanner.className = 'seriecita-update-banner';
+      updateBanner.target = '_blank';
+      updateBanner.rel = 'noopener noreferrer';
+      document.body.appendChild(updateBanner);
+    }
+    updateBanner.href = info.url;
+    updateBanner.textContent = `Seriecita v${info.version} 업데이트 ›`;
+  }
+
   console.log(`${LOG_PREFIX} content script loaded on`, location.href);
 
   const observer = new MutationObserver(() => {
@@ -347,5 +365,15 @@
     enabled = result.seriecitaEnabled;
     createToggleButton();
     scheduleRun();
+  });
+
+  chrome.storage.local.get('seriecitaUpdateAvailable', (result) => {
+    renderUpdateBanner(result.seriecitaUpdateAvailable);
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.seriecitaUpdateAvailable) {
+      renderUpdateBanner(changes.seriecitaUpdateAvailable.newValue);
+    }
   });
 })();

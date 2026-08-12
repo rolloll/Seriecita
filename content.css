@@ -154,3 +154,24 @@
 .seriecita-toggle[data-enabled="false"] {
   background: #5f6368;
 }
+
+.seriecita-update-banner {
+  position: fixed;
+  right: 20px;
+  bottom: 120px;
+  z-index: 9999;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background: #188038;
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seriecita-update-banner:hover {
+  background: #14602c;
+}

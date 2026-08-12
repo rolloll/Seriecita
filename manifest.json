@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Seriecita",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "구글 플레이북스 라이브러리에서 같은 시리즈의 책들을 자동으로 묶어서 보여줍니다.",
   "icons": {
     "16": "icon16.png",
@@ -16,7 +16,11 @@
     },
     "default_title": "Seriecita"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "notifications", "alarms"],
+  "host_permissions": ["https://api.github.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://play.google.com/books*"],

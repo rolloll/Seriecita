@@ -11,24 +11,29 @@ Seriecita는 브라우저 확장으로 라이브러리 화면에 개입해서, �
 - **시리즈 전체 선택**: 펼친 시리즈 헤더의 "전체 선택" 버튼을 누르면 그 시리즈의 모든 권에 대해 구글 기본 "선택" 체크박스를 순서대로 눌러줍니다. 이후 구글 자체의 선택 툴바(삭제, 서가에 추가 등)를 그대로 사용할 수 있습니다.
 - **작가별 모아보기**: 각 책의 작가 이름 옆에 있는 "모아보기"를 클릭하면 서재 전체가 그 작가의 책들만 보이도록 필터링됩니다. 화면 우하단에 뜨는 필터 칩의 ✕를 누르면 해제됩니다.
 - **켜기/끄기 토글**: 화면 우하단의 `Seriecita: ON/OFF` 버튼으로 언제든 원래 구글 뷰로 되돌릴 수 있습니다. 상태는 `chrome.storage.local`에 저장되어 다음 방문에도 유지됩니다.
+- **업데이트 알림**: 백그라운드에서 6시간마다 이 저장소의 [최신 릴리스](https://github.com/rolloll/Seriecita/releases/latest)를 확인합니다. 새 버전이 있으면 데스크톱 알림이 뜨고(클릭하면 릴리스 페이지로 이동), 플레이북스 탭을 보고 있다면 우하단에 초록색 `Seriecita vX.X.X 업데이트 ›` 배너도 함께 뜹니다. 같은 버전으로는 한 번만 알립니다.
 
 ## 설치 (사용자용)
 
-1. 이 저장소를 다운로드하거나 클론합니다.
+1. [최신 릴리스](https://github.com/rolloll/Seriecita/releases/latest)에서 zip을 내려받아 압축을 풀거나, 이 저장소를 클론합니다.
 2. 크롬: `chrome://extensions` / 엣지: `edge://extensions` 접속
 3. **개발자 모드** 켜기 (엣지는 좌측 하단, 크롬은 우측 상단)
-4. **"압축해제된 확장 프로그램 로드"** 클릭 → 이 저장소 폴더 선택
+4. **"압축해제된 확장 프로그램 로드"** 클릭 → 압축을 푼 폴더(또는 클론한 폴더) 선택
 5. `play.google.com/books` 새로고침
 
-업데이트를 받으면(파일이 바뀌면) 확장 목록에서 Seriecita 카드의 **"다시 로드"** 를 눌러야 반영됩니다.
+업데이트가 나오면 알림/배너가 안내하는 릴리스 페이지에서 새 zip을 받아 같은 폴더에 덮어쓴 뒤, 확장 목록에서 Seriecita 카드의 **"다시 로드"** 를 누르면 반영됩니다.
 
 ## 프로젝트 구조 (개발자용)
 
 ```
 manifest.json   Manifest V3 정의. content_scripts로 content.js/content.css를
-                https://play.google.com/books* 에 주입. permission은 storage 하나뿐.
-content.js      전체 로직 (아래 "동작 방식" 참고)
-content.css     주입되는 배지/헤더/토글/필터칩 스타일
+                https://play.google.com/books* 에 주입.
+                background.js를 서비스 워커로 등록.
+content.js      라이브러리 화면 로직 (아래 "동작 방식" 참고)
+content.css     주입되는 배지/헤더/토글/필터칩/업데이트 배너 스타일
+background.js   6시간마다 GitHub Releases API로 최신 버전을 확인하고
+                새 버전이 있으면 chrome.notifications로 알림, 결과를
+                chrome.storage.local(`seriecitaUpdateAvailable`)에 기록
 icon*.png       툴바/관리 페이지용 아이콘 (16/48/128px)
 ```
 
@@ -49,8 +54,18 @@ icon*.png       툴바/관리 페이지용 아이콘 (16/48/128px)
 - `getGrid()`: 그리드 컨테이너를 CSS 클래스명이 아니라 `document.querySelector('gpb-volume-card').parentElement`로 찾습니다. 구글이 클래스명을 바꿔도 깨지지 않도록 하기 위함입니다.
 - 재실행 트리거: `document.body`에 걸어둔 `MutationObserver`(childList/subtree)가 정렬 변경, 지연 로딩, 화면 이동/복귀를 모두 감지해 300ms 디바운스 후 재적용. 우리가 만든 mutation에 스스로 반응하지 않도록 `isApplying` 플래그로 가드.
 
+업데이트 확인 흐름(`background.js`):
+
+1. 설치 시 및 6시간마다(`chrome.alarms`) `GET https://api.github.com/repos/rolloll/Seriecita/releases/latest` 호출
+2. 받아온 `tag_name`(`v1.1.0` 형식)을 `chrome.runtime.getManifest().version`과 숫자 비교(`compareVersions`)
+3. 더 높은 버전이면 `seriecitaUpdateAvailable`에 `{version, url}` 저장 + (버전당 최초 1회) `chrome.notifications.create`
+4. `content.js`는 `chrome.storage.onChanged`로 이 값을 구독해서 배너를 띄우거나 지움
+
+새 릴리스를 낼 때는 `manifest.json`의 `version`을 올리고, 그 버전과 같은 태그(`vX.X.X`)로 GitHub Release를 만들어야 이 메커니즘이 인식합니다.
+
 ## 알려진 한계
 
 - 제목에 권수 표기가 전혀 없는 시리즈(부제만 다른 경우)는 인식하지 못합니다.
 - "전체 선택"은 구글의 내부 "Select"/"선택" 버튼을 라벨 텍스트로 찾아 클릭하는 방식이라, 구글이 마크업이나 라벨을 바꾸면 조용히 동작하지 않을 수 있습니다.
 - Google Play Books 자체 UI 변경(클래스명 변경, DOM 구조 변경)에 대한 자동 테스트가 없습니다. 문제가 생기면 `content.js`의 셀렉터(`gpb-volume-card`, `.metadata`, `.cover`, `a.title`)를 다시 확인하세요.
+- 업데이트 확인은 GitHub Releases API를 비인증으로 호출하므로 시간당 요청 한도(IP당 60회)가 있습니다. 개인 사용 범위에서는 문제 없는 수준입니다.
