@@ -2,6 +2,29 @@ const REPO = 'rolloll/Seriecita';
 const CHECK_ALARM = 'seriecita-update-check';
 const CHECK_INTERVAL_MINUTES = 360;
 
+const STRINGS = {
+  ko: {
+    updateTitle: 'Seriecita 업데이트',
+    updateMessage: (version) => `v${version} 버전이 나왔습니다. 클릭하면 릴리스 페이지로 이동합니다.`,
+  },
+  en: {
+    updateTitle: 'Seriecita update available',
+    updateMessage: (version) => `v${version} is out. Click to open the release page.`,
+  },
+};
+
+async function resolveLocale() {
+  const { seriecitaLocale = 'auto' } = await chrome.storage.local.get('seriecitaLocale');
+  if (seriecitaLocale === 'ko' || seriecitaLocale === 'en') return seriecitaLocale;
+  return (navigator.language || '').toLowerCase().startsWith('ko') ? 'ko' : 'en';
+}
+
+async function t(key, ...args) {
+  const locale = await resolveLocale();
+  const entry = (STRINGS[locale] || STRINGS.en)[key];
+  return typeof entry === 'function' ? entry(...args) : entry;
+}
+
 function compareVersions(a, b) {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
@@ -41,8 +64,8 @@ async function checkForUpdate() {
       chrome.notifications.create(`seriecita-update-${latestVersion}`, {
         type: 'basic',
         iconUrl: chrome.runtime.getURL('icon128.png'),
-        title: 'Seriecita 업데이트',
-        message: `v${latestVersion} 버전이 나왔습니다. 클릭하면 릴리스 페이지로 이동합니다.`,
+        title: await t('updateTitle'),
+        message: await t('updateMessage', latestVersion),
       });
       await chrome.storage.local.set({ seriecitaNotifiedVersion: latestVersion });
     }

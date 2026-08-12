@@ -5,6 +5,96 @@
 
   const KIND_RANK = { single: -1, volume: 0, sidestory: 1, extra: 2 };
 
+  const STRINGS = {
+    ko: {
+      toggleOn: 'Seriecita: ON',
+      toggleOff: 'Seriecita: OFF',
+      authorFilterLabel: (author) => `작가: ${author}`,
+      collect: '모아보기',
+      volumes: (n) => `${n}권`,
+      selectAll: '전체 선택',
+      rename: '이름 변경',
+      addBooks: '책 추가',
+      deleteGroup: '그룹 삭제',
+      collapse: '접기 ^',
+      badgeVolumes: (n) => `총 ${n}권`,
+      classifyNone: '분류 없음',
+      classifyAuthor: '작가별',
+      classifyYear: '발행연도별',
+      classifyPublisher: '출판사별',
+      metaLoading: (done, total) => `메타데이터 불러오는 중 (${done}/${total})`,
+      unknownAuthor: '(작가 미확인)',
+      unknownYear: '(연도 미확인)',
+      unknownPublisher: '(출판사 미확인)',
+      manualGroupToggle: '수동 묶기',
+      selectedCount: (n) => `${n}권 선택됨`,
+      groupSelection: '시리즈로 묶기',
+      clearSelection: '선택 해제',
+      addToGroupLabel: (name, n) => `"${name}"에 추가할 책 선택 (${n}권)`,
+      add: '추가',
+      cancel: '취소',
+      alertSelectAtLeastTwo: '2권 이상 선택해주세요.',
+      promptGroupName: '시리즈 이름을 입력하세요.',
+      alertSelectBooksToAdd: '추가할 책을 선택해주세요.',
+      confirmRemoveFromGroup: (name) => `이 책을 "${name}"에서 뺄까요? (책 자체는 삭제되지 않습니다)`,
+      promptRename: '새 이름을 입력하세요.',
+      confirmDeleteGroup: (name) => `"${name}" 묶음을 삭제할까요? (책 자체는 삭제되지 않습니다)`,
+      updateBanner: (version) => `Seriecita v${version} 업데이트 ›`,
+    },
+    en: {
+      toggleOn: 'Seriecita: ON',
+      toggleOff: 'Seriecita: OFF',
+      authorFilterLabel: (author) => `Author: ${author}`,
+      collect: 'Collect',
+      volumes: (n) => `${n} vol.`,
+      selectAll: 'Select all',
+      rename: 'Rename',
+      addBooks: 'Add books',
+      deleteGroup: 'Delete group',
+      collapse: 'Collapse ^',
+      badgeVolumes: (n) => `${n} vol.`,
+      classifyNone: 'No grouping',
+      classifyAuthor: 'By author',
+      classifyYear: 'By year',
+      classifyPublisher: 'By publisher',
+      metaLoading: (done, total) => `Loading metadata (${done}/${total})`,
+      unknownAuthor: '(Unknown author)',
+      unknownYear: '(Unknown year)',
+      unknownPublisher: '(Unknown publisher)',
+      manualGroupToggle: 'Manual grouping',
+      selectedCount: (n) => `${n} selected`,
+      groupSelection: 'Group as series',
+      clearSelection: 'Clear selection',
+      addToGroupLabel: (name, n) => `Pick books to add to "${name}" (${n})`,
+      add: 'Add',
+      cancel: 'Cancel',
+      alertSelectAtLeastTwo: 'Select at least 2 books.',
+      promptGroupName: 'Enter a series name.',
+      alertSelectBooksToAdd: 'Select books to add.',
+      confirmRemoveFromGroup: (name) => `Remove this book from "${name}"? (The book itself won't be deleted.)`,
+      promptRename: 'Enter a new name.',
+      confirmDeleteGroup: (name) => `Delete the "${name}" grouping? (The books themselves won't be deleted.)`,
+      updateBanner: (version) => `Seriecita v${version} update available ›`,
+    },
+  };
+
+  let localePref = 'auto'; // 'auto' | 'ko' | 'en'
+  let locale = 'en';
+
+  function detectLocale() {
+    const lang = (document.documentElement.lang || navigator.language || '').toLowerCase();
+    return lang.startsWith('ko') ? 'ko' : 'en';
+  }
+
+  function resolveLocale() {
+    locale = localePref === 'ko' || localePref === 'en' ? localePref : detectLocale();
+  }
+
+  function t(key, ...args) {
+    const entry = (STRINGS[locale] || STRINGS.en)[key];
+    return typeof entry === 'function' ? entry(...args) : entry;
+  }
+
   let enabled = true;
   let isApplying = false;
   let debounceTimer = null;
@@ -21,6 +111,7 @@
   let classifyMode = 'none'; // 'none' | 'author' | 'year' | 'publisher'
   let selectMode = false;
   let addTargetGroupId = null; // set while picking books to add to an existing custom group
+  let lastMetaProgress = null;
 
   const expandedKeys = new Set();
   const manualSelection = new Set(); // volume ids
@@ -41,7 +132,7 @@
 
   function parseSeries(rawTitle) {
     const flags = [];
-    let t = rawTitle
+    let s = rawTitle
       .replace(/\s*\((완결|개정판)\)/g, (_, f) => {
         flags.push(f);
         return '';
@@ -50,19 +141,19 @@
       .replace(/\s{2,}/g, ' ');
 
     let m;
-    if ((m = t.match(/^(.*\S)\s+\(?외전\s*(\d+)?\)?$/))) {
+    if ((m = s.match(/^(.*\S)\s+\(?외전\s*(\d+)?\)?$/))) {
       return { base: m[1], kind: 'sidestory', num: m[2] ? parseInt(m[2], 10) : 0, flags };
     }
-    if ((m = t.match(/^(.*\S)\s+\(?번외\s*(\d+)?\)?$/))) {
+    if ((m = s.match(/^(.*\S)\s+\(?번외\s*(\d+)?\)?$/))) {
       return { base: m[1], kind: 'extra', num: m[2] ? parseInt(m[2], 10) : 0, flags };
     }
-    if ((m = t.match(/^(.*\S)\s+(\d+)권$/))) {
+    if ((m = s.match(/^(.*\S)\s+(\d+)권$/))) {
       return { base: m[1], kind: 'volume', num: parseInt(m[2], 10), flags };
     }
-    if ((m = t.match(/^(.*\S)\s+(\d+)$/))) {
+    if ((m = s.match(/^(.*\S)\s+(\d+)$/))) {
       return { base: m[1], kind: 'volume', num: parseInt(m[2], 10), flags };
     }
-    return { base: t, kind: 'single', num: 0, flags };
+    return { base: s, kind: 'single', num: 0, flags };
   }
 
   function readCard(card) {
@@ -150,9 +241,9 @@
   }
 
   function classifyKey(entry) {
-    if (classifyMode === 'author') return entry.author || '(작가 미확인)';
-    if (classifyMode === 'year') return entryYear(entry) || '(연도 미확인)';
-    if (classifyMode === 'publisher') return entryPublisher(entry) || '(출판사 미확인)';
+    if (classifyMode === 'author') return entry.author || t('unknownAuthor');
+    if (classifyMode === 'year') return entryYear(entry) || t('unknownYear');
+    if (classifyMode === 'publisher') return entryPublisher(entry) || t('unknownPublisher');
     return null;
   }
 
@@ -176,7 +267,7 @@
         if (Number.isNaN(nb)) return -1;
         return nb - na;
       }
-      return String(a.label).localeCompare(String(b.label), 'ko');
+      return String(a.label).localeCompare(String(b.label), locale);
     });
     return buckets;
   }
@@ -251,7 +342,7 @@
     }
     filterChip.innerHTML = '';
     const label = document.createElement('span');
-    label.textContent = `작가: ${authorFilter}`;
+    label.textContent = t('authorFilterLabel', authorFilter);
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.textContent = '✕';
@@ -266,22 +357,25 @@
   function ensureAuthorButtons(cards) {
     cards.forEach((card) => {
       const metadata = card.querySelector('.metadata');
-      if (!metadata || metadata.querySelector('[data-seriecita-author-btn]')) return;
+      if (!metadata) return;
       const authorEl = metadata.querySelector('a[href*="/author?id="]');
       const author = (authorEl?.textContent || '').trim();
       if (!author) return;
 
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'seriecita-author-btn';
-      btn.dataset.seriecitaAuthorBtn = 'true';
-      btn.textContent = '모아보기';
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setAuthorFilter(author);
-      });
-      metadata.appendChild(btn);
+      let btn = metadata.querySelector('[data-seriecita-author-btn]');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'seriecita-author-btn';
+        btn.dataset.seriecitaAuthorBtn = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setAuthorFilter(author);
+        });
+        metadata.appendChild(btn);
+      }
+      btn.textContent = t('collect');
     });
   }
 
@@ -302,7 +396,7 @@
   function removeFromCustomGroup(groupId, volumeId) {
     const group = customGroups[groupId];
     if (!group) return;
-    if (!confirm(`이 책을 "${group.name}"에서 뺄까요? (책 자체는 삭제되지 않습니다)`)) return;
+    if (!confirm(t('confirmRemoveFromGroup', group.name))) return;
     group.volumeIds = group.volumeIds.filter((id) => id !== volumeId);
     pruneGroupIfTooSmall(groupId);
     saveCustomGroups();
@@ -313,7 +407,7 @@
   function renameCustomGroup(groupId, currentName) {
     const group = customGroups[groupId];
     if (!group) return;
-    const newName = prompt('새 이름을 입력하세요.', currentName);
+    const newName = prompt(t('promptRename'), currentName);
     if (!newName || !newName.trim()) return;
     group.name = newName.trim();
     saveCustomGroups();
@@ -334,7 +428,7 @@
   function confirmAddToGroup() {
     if (!addTargetGroupId) return;
     if (manualSelection.size === 0) {
-      alert('추가할 책을 선택해주세요.');
+      alert(t('alertSelectBooksToAdd'));
       return;
     }
     const group = customGroups[addTargetGroupId];
@@ -392,10 +486,10 @@
 
   function createCustomGroupFromSelection() {
     if (manualSelection.size < 2) {
-      alert('2권 이상 선택해주세요.');
+      alert(t('alertSelectAtLeastTwo'));
       return;
     }
-    const name = prompt('시리즈 이름을 입력하세요.');
+    const name = prompt(t('promptGroupName'));
     if (!name || !name.trim()) return;
 
     const groupId = `custom-${Date.now()}`;
@@ -427,28 +521,28 @@
     if (addTargetGroupId) {
       const group = customGroups[addTargetGroupId];
       const label = document.createElement('span');
-      label.textContent = `"${group?.name || ''}"에 추가할 책 선택 (${manualSelection.size}권)`;
+      label.textContent = t('addToGroupLabel', group?.name || '', manualSelection.size);
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
-      addBtn.textContent = '추가';
+      addBtn.textContent = t('add');
       addBtn.addEventListener('click', confirmAddToGroup);
       const cancelBtn = document.createElement('button');
       cancelBtn.type = 'button';
-      cancelBtn.textContent = '취소';
+      cancelBtn.textContent = t('cancel');
       cancelBtn.addEventListener('click', cancelAddToGroup);
       selectBar.append(label, addBtn, cancelBtn);
       return;
     }
 
     const label = document.createElement('span');
-    label.textContent = `${manualSelection.size}권 선택됨`;
+    label.textContent = t('selectedCount', manualSelection.size);
     const groupBtn = document.createElement('button');
     groupBtn.type = 'button';
-    groupBtn.textContent = '시리즈로 묶기';
+    groupBtn.textContent = t('groupSelection');
     groupBtn.addEventListener('click', createCustomGroupFromSelection);
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button';
-    clearBtn.textContent = '선택 해제';
+    clearBtn.textContent = t('clearSelection');
     clearBtn.addEventListener('click', () => {
       manualSelection.clear();
       refreshCheckboxes();
@@ -462,7 +556,6 @@
     selectModeButton = document.createElement('button');
     selectModeButton.className = 'seriecita-select-mode-toggle';
     selectModeButton.dataset.enabled = String(selectMode);
-    selectModeButton.textContent = '수동 묶기';
     selectModeButton.addEventListener('click', () => {
       selectMode = !selectMode;
       selectModeButton.dataset.enabled = String(selectMode);
@@ -475,27 +568,28 @@
       updateSelectBar();
     });
     document.body.appendChild(selectModeButton);
+    refreshStaticLabels();
   }
 
   // ---- classification bar ----
 
-  const CLASSIFY_OPTIONS = [
-    { value: 'none', label: '분류 없음' },
-    { value: 'author', label: '작가별' },
-    { value: 'year', label: '발행연도별' },
-    { value: 'publisher', label: '출판사별' },
+  const CLASSIFY_KEYS = [
+    { value: 'none', stringKey: 'classifyNone' },
+    { value: 'author', stringKey: 'classifyAuthor' },
+    { value: 'year', stringKey: 'classifyYear' },
+    { value: 'publisher', stringKey: 'classifyPublisher' },
   ];
 
   function createClassifyBar() {
     if (classifyBar) return;
     classifyBar = document.createElement('div');
     classifyBar.className = 'seriecita-classify-bar';
-    CLASSIFY_OPTIONS.forEach((opt) => {
+    CLASSIFY_KEYS.forEach((opt) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'seriecita-classify-option';
       btn.dataset.value = opt.value;
-      btn.textContent = opt.label;
+      btn.dataset.stringKey = opt.stringKey;
       btn.addEventListener('click', () => setClassifyMode(opt.value));
       classifyBar.appendChild(btn);
     });
@@ -504,6 +598,7 @@
     classifyBar.appendChild(metaStatusEl);
     document.body.appendChild(classifyBar);
     updateClassifyBarActive();
+    refreshStaticLabels();
   }
 
   function updateClassifyBarActive() {
@@ -523,12 +618,13 @@
   }
 
   function updateMetaStatus(progress) {
+    lastMetaProgress = progress;
     if (!metaStatusEl) return;
     if (!progress || progress.done >= progress.total) {
       metaStatusEl.textContent = '';
       return;
     }
-    metaStatusEl.textContent = `메타데이터 불러오는 중 (${progress.done}/${progress.total})`;
+    metaStatusEl.textContent = t('metaLoading', progress.done, progress.total);
   }
 
   // ---- headers / badges ----
@@ -545,12 +641,12 @@
 
     const countSpan = document.createElement('span');
     countSpan.className = 'seriecita-header-count';
-    countSpan.textContent = `${entry.items.length}권`;
+    countSpan.textContent = t('volumes', entry.items.length);
 
     const selectAllBtn = document.createElement('button');
     selectAllBtn.type = 'button';
     selectAllBtn.className = 'seriecita-select-all';
-    selectAllBtn.textContent = '전체 선택';
+    selectAllBtn.textContent = t('selectAll');
     selectAllBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -563,7 +659,7 @@
       const renameBtn = document.createElement('button');
       renameBtn.type = 'button';
       renameBtn.className = 'seriecita-rename-group';
-      renameBtn.textContent = '이름 변경';
+      renameBtn.textContent = t('rename');
       renameBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -573,7 +669,7 @@
       const addBooksBtn = document.createElement('button');
       addBooksBtn.type = 'button';
       addBooksBtn.className = 'seriecita-add-books';
-      addBooksBtn.textContent = '책 추가';
+      addBooksBtn.textContent = t('addBooks');
       addBooksBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -583,11 +679,11 @@
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'seriecita-delete-group';
-      deleteBtn.textContent = '그룹 삭제';
+      deleteBtn.textContent = t('deleteGroup');
       deleteBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!confirm(`"${entry.base}" 묶음을 삭제할까요? (책 자체는 삭제되지 않습니다)`)) return;
+        if (!confirm(t('confirmDeleteGroup', entry.base))) return;
         delete customGroups[entry.groupId];
         saveCustomGroups();
         expandedKeys.delete(entry.key);
@@ -601,7 +697,7 @@
     const collapseBtn = document.createElement('button');
     collapseBtn.type = 'button';
     collapseBtn.className = 'seriecita-collapse';
-    collapseBtn.textContent = '접기 ^';
+    collapseBtn.textContent = t('collapse');
     collapseBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -621,7 +717,7 @@
     badge.dataset.seriecitaBadge = 'true';
 
     const label = document.createElement('span');
-    label.textContent = `총 ${count}권`;
+    label.textContent = t('badgeVolumes', count);
     const chevron = document.createElement('span');
     chevron.setAttribute('aria-hidden', 'true');
     chevron.textContent = '›';
@@ -657,7 +753,7 @@
     header.dataset.seriecitaClassifyHeader = 'true';
     header.style.order = String(order);
     const count = entries.reduce((sum, e) => sum + (e.type === 'group' ? e.items.length : 1), 0);
-    header.textContent = `${label} (${count}권)`;
+    header.textContent = `${label} (${t('volumes', count)})`;
     return header;
   }
 
@@ -798,15 +894,15 @@
     toggleButton = document.createElement('button');
     toggleButton.className = 'seriecita-toggle';
     toggleButton.dataset.enabled = String(enabled);
-    toggleButton.textContent = enabled ? 'Seriecita: ON' : 'Seriecita: OFF';
     toggleButton.addEventListener('click', () => {
       enabled = !enabled;
       toggleButton.dataset.enabled = String(enabled);
-      toggleButton.textContent = enabled ? 'Seriecita: ON' : 'Seriecita: OFF';
+      toggleButton.textContent = enabled ? t('toggleOn') : t('toggleOff');
       chrome.storage.local.set({ seriecitaEnabled: enabled });
       scheduleRun();
     });
     document.body.appendChild(toggleButton);
+    refreshStaticLabels();
   }
 
   function renderUpdateBanner(info) {
@@ -823,7 +919,22 @@
       document.body.appendChild(updateBanner);
     }
     updateBanner.href = info.url;
-    updateBanner.textContent = `Seriecita v${info.version} 업데이트 ›`;
+    updateBanner.textContent = t('updateBanner', info.version);
+  }
+
+  // Re-applies the current locale to persistent UI chrome that's only
+  // created once (so its text doesn't otherwise update on locale change).
+  function refreshStaticLabels() {
+    if (toggleButton) toggleButton.textContent = enabled ? t('toggleOn') : t('toggleOff');
+    if (selectModeButton) selectModeButton.textContent = t('manualGroupToggle');
+    if (classifyBar) {
+      classifyBar.querySelectorAll('.seriecita-classify-option').forEach((btn) => {
+        btn.textContent = t(btn.dataset.stringKey);
+      });
+    }
+    updateMetaStatus(lastMetaProgress);
+    updateFilterChip();
+    updateSelectBar();
   }
 
   console.log(`${LOG_PREFIX} content script loaded on`, location.href);
@@ -833,6 +944,12 @@
     scheduleRun();
   });
   observer.observe(document.body, { childList: true, subtree: true });
+
+  chrome.storage.local.get({ seriecitaLocale: 'auto' }, (result) => {
+    localePref = result.seriecitaLocale;
+    resolveLocale();
+    refreshStaticLabels();
+  });
 
   chrome.storage.local.get({ seriecitaEnabled: true }, (result) => {
     enabled = result.seriecitaEnabled;
@@ -879,6 +996,14 @@
 
     if (changes.seriecitaMetaFetchProgress) {
       updateMetaStatus(changes.seriecitaMetaFetchProgress.newValue);
+    }
+
+    if (changes.seriecitaLocale) {
+      localePref = changes.seriecitaLocale.newValue || 'auto';
+      resolveLocale();
+      refreshStaticLabels();
+      const grid = getGrid();
+      if (grid && enabled) applyGrouping(grid);
     }
   });
 })();

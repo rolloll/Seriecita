@@ -7,13 +7,14 @@ Seriecita is a Chrome/Edge (Manifest V3) extension that hooks into the library p
 ## Features
 
 - **Automatic series detection**: Titles ending in patterns like `1권`, `2`, `외전1`, `(외전 1)`, `번외` are grouped by base title + author. A series only collapses once you actually own 2+ volumes of it — a single volume has nothing to group with, so it's left alone.
-- **Deck view**: A grouped series shows only its lowest-numbered volume, with a `총 N권 ›` badge in the bottom-right corner of the cover. Clicking the badge expands that series into its full, ordered list of volumes, with a header (title + count + a collapse button) at the top.
-- **Select all in a series**: The "전체 선택" button in an expanded series header clicks Google's native "Select" checkbox on every volume in that series, so you can immediately use Google's own selection toolbar (delete, add to shelf, etc.).
-- **Collect by author**: A small "모아보기" link next to each author's name filters the whole shelf down to just that author's books. A chip in the bottom-right corner (with a ✕) clears the filter.
+- **Deck view**: A grouped series shows only its lowest-numbered volume, with a badge (e.g. "5 vol. ›") in the bottom-right corner of the cover. Clicking the badge expands that series into its full, ordered list of volumes, with a header (title + count + a collapse button) at the top.
+- **Select all in a series**: The "Select all" button in an expanded series header clicks Google's native "Select" checkbox on every volume in that series, so you can immediately use Google's own selection toolbar (delete, add to shelf, etc.).
+- **Collect by author**: A small "Collect" link next to each author's name filters the whole shelf down to just that author's books. A chip in the bottom-right corner (with a ✕) clears the filter.
 - **On/off toggle**: The `Seriecita: ON/OFF` button in the bottom-right corner instantly reverts to Google's normal view. State is saved in `chrome.storage.local` and persists across visits.
-- **Update notifications**: A background check every 6 hours against this repo's [latest release](https://github.com/rolloll/Seriecita/releases/latest). If a newer version exists, you get a desktop notification (click it to jump to the release page) and, if a Play Books tab is open, a green `Seriecita vX.X.X 업데이트 ›` banner. Each version is only announced once.
-- **Classify by author / publish year / publisher**: The classification bar in the top-right corner splits the whole shelf into sections by one of these (a grouped series is classified by its lowest-numbered volume). Author classification is instant since that data is already on the page; year/publisher require fetching each book's info from the Google Books API, so the bar shows "메타데이터 불러오는 중 (N/M)" while that's in progress, and books with no data land in an "(연도 미확인)"/"(출판사 미확인)" section. Once fetched, results are cached.
-- **Manual series grouping**: For series the title heuristic misses (no volume marker, or an irregular one), turn on "수동 묶기" in the bottom-left corner to get a selection checkbox on every cover. Select 2+ books, click "시리즈로 묶기", and name it — it becomes a deck just like an auto-detected series, with the same badge/expand/select-all behavior. From an expanded custom group's header you can **"이름 변경"** (rename) or **"책 추가"** (re-enter selection mode to add more books); each volume also gets a ✕ button to remove just that one (the group auto-dissolves once it drops below 2 members). "그룹 삭제" removes the whole grouping — none of this ever deletes an actual book.
+- **Update notifications**: A background check every 6 hours against this repo's [latest release](https://github.com/rolloll/Seriecita/releases/latest). If a newer version exists, you get a desktop notification (click it to jump to the release page) and, if a Play Books tab is open, a green update banner. Each version is only announced once.
+- **Classify by author / publish year / publisher**: The classification bar in the top-right corner splits the whole shelf into sections by one of these (a grouped series is classified by its lowest-numbered volume). Author classification is instant since that data is already on the page; year/publisher require fetching each book's info from the Google Books API, so the bar shows a "Loading metadata (N/M)" status while that's in progress, and books with no data land in an "Unknown year"/"Unknown publisher" section. Once fetched, results are cached.
+- **Manual series grouping**: For series the title heuristic misses (no volume marker, or an irregular one), turn on "Manual grouping" in the bottom-left corner to get a selection checkbox on every cover. Select 2+ books, click "Group as series", and name it — it becomes a deck just like an auto-detected series, with the same badge/expand/select-all behavior. From an expanded custom group's header you can **rename** it or **add books** (re-enters selection mode); each volume also gets a ✕ button to remove just that one (the group auto-dissolves once it drops below 2 members). Deleting a group removes the whole grouping — none of this ever deletes an actual book.
+- **English/Korean UI**: All of Seriecita's own text (buttons, banners, dialogs, notifications) is available in English and Korean. It follows the page's language by default, and can be pinned to either in Settings.
 
 ## Installation
 
@@ -27,7 +28,10 @@ When a new version is released, download the new zip from the release page the n
 
 ## Settings
 
-Right-click the extension icon → **Options** (or, on `chrome://extensions`, Seriecita's "Details → Extension options") to set a Google Books API key. Year/publisher classification calls `GET https://www.googleapis.com/books/v1/volumes/{id}` for every book; it works without a key, but unauthenticated requests have a low quota and a large library may hit 429 errors. The key is stored only in Seriecita's own `chrome.storage.local` and is never sent anywhere else.
+Right-click the extension icon → **Options** (or, on `chrome://extensions`, Seriecita's "Details → Extension options") to:
+
+- **Language**: Auto-detect (follows the Play Books page's language), Korean, or English. Applies to every button, banner, dialog, and notification Seriecita adds.
+- **Google Books API key (optional)**: used for year/publisher classification, which calls `GET https://www.googleapis.com/books/v1/volumes/{id}` for every book. It works without a key, but unauthenticated requests have a low quota and a large library may hit 429 errors. The key is stored only in Seriecita's own `chrome.storage.local` and is never sent anywhere else.
 
 ## Project structure
 
@@ -43,7 +47,7 @@ background.js   1) Checks the GitHub Releases API every 6 hours and notifies
                 2) Looks up volume ids that content.js requests against the
                    Google Books API, caching results in
                    chrome.storage.local (`seriecitaMetaCache`)
-options/        A small settings page for the optional API key (options_ui)
+options/        Settings page (options_ui): language and the optional API key
 icon*.png       Toolbar/management-page icons (16/48/128px)
 ```
 
@@ -54,7 +58,7 @@ There's no build step — the browser reads these files as-is.
 Since the Play Books library is an Angular app, moving DOM nodes directly risks Angular's next change-detection pass undoing it. The implementation follows two rules instead:
 
 1. **Never move a card node.** Each `<gpb-volume-card>` only gets its inline `style.order` (CSS Grid's visual order) and `style.display` touched. The actual DOM tree stays exactly as Angular left it.
-2. **Only add/remove nodes we created ourselves.** Series headers, badges, the "모아보기" button, and filter chips are all elements Seriecita appends, tagged with `data-seriecita-*` attributes so they can be cleanly removed and rebuilt on every re-render.
+2. **Only add/remove nodes we created ourselves.** Series headers, badges, the "Collect" button, and filter chips are all elements Seriecita appends, tagged with `data-seriecita-*` attributes so they can be cleanly removed and rebuilt on every re-render.
 
 Key functions in `content.js`:
 
@@ -66,6 +70,8 @@ Key functions in `content.js`:
 - Re-run trigger: a `MutationObserver` on `document.body` (childList/subtree) catches sort changes, lazy loading, and navigating away and back, debounced 300ms before reapplying. An `isApplying` flag stops it from reacting to mutations Seriecita itself just made.
 
 Manual grouping (`customGroups`) and classification (`classifyMode`/`metaCache`) persist across restarts in `chrome.storage.local` under `seriecitaCustomGroups`, `seriecitaClassifyMode`, and `seriecitaMetaCache`. `getVolumeId(card)`, which extracts the id from a card's `a.title` href (`.../reader?id=XXXX`), is the shared key across all three features.
+
+Localization: `content.js`, `background.js`, and `options/options.js` each keep a small `STRINGS = { ko: {...}, en: {...} }` dictionary (no shared module system, since there's no build step) and a `t(key, ...args)` helper that looks up the current locale's entry, calling it if it's a function (for strings that interpolate a count, name, etc.). The active locale comes from `seriecitaLocale` in `chrome.storage.local` (`'auto' | 'ko' | 'en'`, default `'auto'`); when set to `'auto'`, `content.js` reads `document.documentElement.lang` (falling back to `navigator.language`) since it runs on the actual Play Books page, while `background.js` and `options.js` — which have no page to inspect — fall back to `navigator.language` directly. Changing the setting in Options writes `seriecitaLocale`, and `content.js`'s existing `chrome.storage.onChanged` subscription re-resolves the locale and calls `refreshStaticLabels()` (for the toggle/classify-bar/select-mode chrome that's only built once) plus a full `applyGrouping()` re-render (for headers/badges/dialogs, which already call `t()` fresh on every render).
 
 Metadata lookup flow: when `content.js` switches classification to year or publisher, it sends any uncached ids to the background via `chrome.runtime.sendMessage({type:'seriecitaFetchMetadata', ids})`. The background worker calls `https://www.googleapis.com/books/v1/volumes/{id}` one at a time (150ms apart) and writes results into `seriecitaMetaCache`. `content.js` subscribes to that via `chrome.storage.onChanged` and redraws as data arrives.
 
@@ -81,8 +87,8 @@ For this mechanism to pick up a new release, bump `version` in `manifest.json` a
 ## Known limitations
 
 - A series with no volume marker at all in its titles (only the subtitle differs) won't be auto-detected — use manual grouping for those.
-- "전체 선택" finds Google's internal "Select"/"선택" button by its label text and clicks it; if Google changes that markup or label, it may silently stop working.
+- "Select all" finds Google's own internal "Select"/"선택" button by its label text and clicks it; if Google changes that markup or label, it may silently stop working.
 - There's no automated test against Google Play Books' own UI changes (class names, DOM structure). If something breaks, check the selectors in `content.js` (`gpb-volume-card`, `.metadata`, `.cover`, `a.title`).
 - Update checks call the GitHub Releases API unauthenticated, so there's a per-IP hourly limit (60 requests) — a non-issue at personal-use scale.
-- Year/publisher lookups use Google Books' per-id volume API; books that genuinely have no such data there (self-published, unlisted, etc.) land in the "미확인" bucket. If bulk lookups without an API key hit a 429, wait a bit and re-select the classification to retry.
+- Year/publisher lookups use Google Books' per-id volume API; books that genuinely have no such data there (self-published, unlisted, etc.) land in the "Unknown" bucket. If bulk lookups without an API key hit a 429, wait a bit and re-select the classification to retry.
 - Adding/removing books from a manual group is keyed by volume id, so if a book is fully removed from your library, it naturally drops out of any custom group on the next render.

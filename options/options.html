@@ -2,25 +2,27 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <title>Seriecita 설정</title>
+    <title>Seriecita</title>
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <h1>Seriecita 설정</h1>
+    <h1 id="heading">Seriecita</h1>
 
     <section>
-      <h2>Google Books API 키 (선택)</h2>
-      <p class="hint">
-        발행연도/출판사별 분류 기능은 각 책의 정보를 Google Books API에서 가져옵니다. 키 없이도 동작하지만
-        비인증 요청은 일일/시간당 한도가 낮아 책이 많으면 429 오류가 날 수 있습니다.
-        <a href="https://console.cloud.google.com/apis/library/books.googleapis.com" target="_blank" rel="noopener noreferrer"
-          >Google Cloud Console</a
-        >에서 "Books API"를 사용 설정하고 API 키를 만들어 등록하면 한도가 늘어납니다. 키는 이 확장의
-        브라우저 저장소(<code>chrome.storage.local</code>)에만 저장되며 다른 곳으로 전송되지 않습니다.
-      </p>
-      <input id="api-key" type="text" placeholder="API 키 (비워두면 비인증으로 요청)" autocomplete="off" />
+      <h2 id="language-heading">Language</h2>
+      <select id="locale-select">
+        <option value="auto" id="locale-auto-option">Auto-detect</option>
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+      </select>
+    </section>
+
+    <section>
+      <h2 id="api-key-heading">Google Books API key (optional)</h2>
+      <p class="hint" id="api-key-hint"></p>
+      <input id="api-key" type="text" autocomplete="off" />
       <div class="actions">
-        <button id="save">저장</button>
+        <button id="save"></button>
         <span id="status"></span>
       </div>
     </section>
