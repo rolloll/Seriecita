@@ -40,6 +40,9 @@
       promptRename: '새 이름을 입력하세요.',
       confirmDeleteGroup: (name) => `"${name}" 묶음을 삭제할까요? (책 자체는 삭제되지 않습니다)`,
       updateBanner: (version) => `Seriecita v${version} 업데이트 ›`,
+      settingsTooltip: '설정',
+      collapseClassifyBar: '분류 바 접기',
+      expandClassifyBar: '분류 바 펼치기',
     },
     en: {
       toggleOn: 'Seriecita: ON',
@@ -75,6 +78,9 @@
       promptRename: 'Enter a new name.',
       confirmDeleteGroup: (name) => `Delete the "${name}" grouping? (The books themselves won't be deleted.)`,
       updateBanner: (version) => `Seriecita v${version} update available ›`,
+      settingsTooltip: 'Settings',
+      collapseClassifyBar: 'Collapse classification bar',
+      expandClassifyBar: 'Expand classification bar',
     },
   };
 
@@ -99,16 +105,20 @@
   let isApplying = false;
   let debounceTimer = null;
 
+  let toolbar = null;
   let toggleButton = null;
+  let settingsButton = null;
   let filterChip = null;
   let updateBanner = null;
   let classifyBar = null;
+  let classifyCollapseBtn = null;
   let metaStatusEl = null;
   let selectModeButton = null;
   let selectBar = null;
 
   let authorFilter = null;
   let classifyMode = 'none'; // 'none' | 'author' | 'year' | 'publisher'
+  let classifyBarCollapsed = false;
   let selectMode = false;
   let addTargetGroupId = null; // set while picking books to add to an existing custom group
   let lastMetaProgress = null;
@@ -596,6 +606,21 @@
     metaStatusEl = document.createElement('span');
     metaStatusEl.className = 'seriecita-classify-status';
     classifyBar.appendChild(metaStatusEl);
+
+    classifyCollapseBtn = document.createElement('button');
+    classifyCollapseBtn.type = 'button';
+    classifyCollapseBtn.className = 'seriecita-classify-collapse-btn';
+    classifyCollapseBtn.textContent = '▾';
+    classifyCollapseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      classifyBarCollapsed = !classifyBarCollapsed;
+      classifyBar.classList.toggle('collapsed', classifyBarCollapsed);
+      classifyCollapseBtn.textContent = classifyBarCollapsed ? '▸' : '▾';
+      classifyCollapseBtn.title = t(classifyBarCollapsed ? 'expandClassifyBar' : 'collapseClassifyBar');
+    });
+    classifyBar.appendChild(classifyCollapseBtn);
+
     document.body.appendChild(classifyBar);
     updateClassifyBarActive();
     refreshStaticLabels();
@@ -854,6 +879,8 @@
     classifyBar?.remove();
     classifyBar = null;
     metaStatusEl = null;
+    classifyCollapseBtn = null;
+    classifyBarCollapsed = false;
 
     selectModeButton?.remove();
     selectModeButton = null;
@@ -889,6 +916,29 @@
     }, 300);
   }
 
+  function ensureToolbar() {
+    if (toolbar) return toolbar;
+    toolbar = document.createElement('div');
+    toolbar.className = 'seriecita-toolbar';
+    document.body.appendChild(toolbar);
+    return toolbar;
+  }
+
+  function createSettingsButton() {
+    if (settingsButton) return;
+    settingsButton = document.createElement('button');
+    settingsButton.type = 'button';
+    settingsButton.className = 'seriecita-settings-btn';
+    settingsButton.textContent = '⚙';
+    settingsButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.open(chrome.runtime.getURL('options/options.html'), '_blank');
+    });
+    ensureToolbar().appendChild(settingsButton);
+    refreshStaticLabels();
+  }
+
   function createToggleButton() {
     if (toggleButton) return;
     toggleButton = document.createElement('button');
@@ -901,7 +951,7 @@
       chrome.storage.local.set({ seriecitaEnabled: enabled });
       scheduleRun();
     });
-    document.body.appendChild(toggleButton);
+    ensureToolbar().appendChild(toggleButton);
     refreshStaticLabels();
   }
 
@@ -926,11 +976,15 @@
   // created once (so its text doesn't otherwise update on locale change).
   function refreshStaticLabels() {
     if (toggleButton) toggleButton.textContent = enabled ? t('toggleOn') : t('toggleOff');
+    if (settingsButton) settingsButton.title = t('settingsTooltip');
     if (selectModeButton) selectModeButton.textContent = t('manualGroupToggle');
     if (classifyBar) {
       classifyBar.querySelectorAll('.seriecita-classify-option').forEach((btn) => {
         btn.textContent = t(btn.dataset.stringKey);
       });
+    }
+    if (classifyCollapseBtn) {
+      classifyCollapseBtn.title = t(classifyBarCollapsed ? 'expandClassifyBar' : 'collapseClassifyBar');
     }
     updateMetaStatus(lastMetaProgress);
     updateFilterChip();
@@ -953,6 +1007,7 @@
 
   chrome.storage.local.get({ seriecitaEnabled: true }, (result) => {
     enabled = result.seriecitaEnabled;
+    createSettingsButton();
     createToggleButton();
     scheduleRun();
   });

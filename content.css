@@ -134,11 +134,17 @@
   background: rgba(0, 0, 0, 0.85);
 }
 
-.seriecita-toggle {
+.seriecita-toolbar {
   position: fixed;
   right: 20px;
   bottom: 20px;
   z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seriecita-toggle {
   padding: 10px 16px;
   border-radius: 20px;
   border: none;
@@ -153,6 +159,22 @@
 
 .seriecita-toggle[data-enabled="false"] {
   background: #5f6368;
+}
+
+.seriecita-settings-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #5f6368;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seriecita-settings-btn:hover {
+  color: #1a73e8;
 }
 
 .seriecita-update-banner {
@@ -286,6 +308,26 @@
   color: #5f6368;
   padding: 0 6px;
   white-space: nowrap;
+}
+
+.seriecita-classify-collapse-btn {
+  border: none;
+  background: transparent;
+  color: #5f6368;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 14px;
+}
+
+.seriecita-classify-collapse-btn:hover {
+  background: #f1f3f4;
+  color: #1a73e8;
+}
+
+.seriecita-classify-bar.collapsed .seriecita-classify-option,
+.seriecita-classify-bar.collapsed .seriecita-classify-status {
+  display: none;
 }
 
 .seriecita-select-mode-toggle {
