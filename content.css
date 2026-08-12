@@ -1,0 +1,156 @@
+.seriecita-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 4px 6px;
+  border-top: 1px solid #e0e0e0;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+}
+
+.seriecita-header:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.seriecita-header-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #202124;
+}
+
+.seriecita-header-count {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.seriecita-collapse {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #1a73e8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.seriecita-collapse:hover {
+  text-decoration: underline;
+}
+
+.seriecita-select-all {
+  margin-left: 8px;
+  border: 1px solid #1a73e8;
+  border-radius: 14px;
+  background: transparent;
+  color: #1a73e8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 10px;
+}
+
+.seriecita-select-all:hover {
+  background: rgba(26, 115, 232, 0.08);
+}
+
+.seriecita-author-btn {
+  display: inline-block;
+  margin-left: 6px;
+  border: none;
+  background: transparent;
+  color: #5f6368;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.seriecita-author-btn:hover {
+  color: #1a73e8;
+}
+
+.seriecita-filter-chip {
+  position: fixed;
+  right: 20px;
+  bottom: 70px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 20px;
+  background: #202124;
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seriecita-filter-chip button {
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
+.seriecita-filter-chip button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.seriecita-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+.seriecita-badge:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.seriecita-toggle {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: none;
+  background: #1a73e8;
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seriecita-toggle[data-enabled="false"] {
+  background: #5f6368;
+}
