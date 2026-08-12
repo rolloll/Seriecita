@@ -177,6 +177,24 @@
   color: #1a73e8;
 }
 
+.seriecita-lang-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #5f6368;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.seriecita-lang-btn:hover {
+  color: #1a73e8;
+}
+
 .seriecita-update-banner {
   position: fixed;
   right: 20px;

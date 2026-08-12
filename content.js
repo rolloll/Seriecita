@@ -108,6 +108,7 @@
   let toolbar = null;
   let toggleButton = null;
   let settingsButton = null;
+  let languageButton = null;
   let filterChip = null;
   let updateBanner = null;
   let classifyBar = null;
@@ -933,9 +934,29 @@
     settingsButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      window.open(chrome.runtime.getURL('options/options.html'), '_blank');
+      chrome.runtime.sendMessage({ type: 'seriecitaOpenOptions' });
     });
     ensureToolbar().appendChild(settingsButton);
+    refreshStaticLabels();
+  }
+
+  function createLanguageButton() {
+    if (languageButton) return;
+    languageButton = document.createElement('button');
+    languageButton.type = 'button';
+    languageButton.className = 'seriecita-lang-btn';
+    languageButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = locale === 'ko' ? 'en' : 'ko';
+      localePref = next;
+      chrome.storage.local.set({ seriecitaLocale: next });
+      resolveLocale();
+      refreshStaticLabels();
+      const grid = getGrid();
+      if (grid && enabled) applyGrouping(grid);
+    });
+    ensureToolbar().appendChild(languageButton);
     refreshStaticLabels();
   }
 
@@ -977,6 +998,10 @@
   function refreshStaticLabels() {
     if (toggleButton) toggleButton.textContent = enabled ? t('toggleOn') : t('toggleOff');
     if (settingsButton) settingsButton.title = t('settingsTooltip');
+    if (languageButton) {
+      languageButton.textContent = locale === 'ko' ? 'EN' : '한';
+      languageButton.title = locale === 'ko' ? 'Switch to English' : '한국어로 전환';
+    }
     if (selectModeButton) selectModeButton.textContent = t('manualGroupToggle');
     if (classifyBar) {
       classifyBar.querySelectorAll('.seriecita-classify-option').forEach((btn) => {
@@ -1008,6 +1033,7 @@
   chrome.storage.local.get({ seriecitaEnabled: true }, (result) => {
     enabled = result.seriecitaEnabled;
     createSettingsButton();
+    createLanguageButton();
     createToggleButton();
     scheduleRun();
   });

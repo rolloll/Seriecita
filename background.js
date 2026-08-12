@@ -163,4 +163,7 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === 'seriecitaFetchMetadata' && Array.isArray(message.ids)) {
     enqueueMetadata(message.ids);
   }
+  if (message?.type === 'seriecitaOpenOptions') {
+    chrome.runtime.openOptionsPage();
+  }
 });
