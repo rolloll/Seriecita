@@ -176,6 +176,23 @@
   background: #14602c;
 }
 
+.seriecita-rename-group,
+.seriecita-add-books {
+  margin-left: 8px;
+  border: none;
+  background: transparent;
+  color: #1a73e8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.seriecita-rename-group:hover,
+.seriecita-add-books:hover {
+  text-decoration: underline;
+}
+
 .seriecita-delete-group {
   margin-left: 8px;
   border: none;
@@ -189,6 +206,28 @@
 
 .seriecita-delete-group:hover {
   text-decoration: underline;
+}
+
+.seriecita-remove-btn {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  z-index: 6;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.seriecita-remove-btn:hover {
+  background: #d93025;
 }
 
 .seriecita-classify-header {

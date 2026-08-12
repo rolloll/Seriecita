@@ -20,6 +20,7 @@
   let authorFilter = null;
   let classifyMode = 'none'; // 'none' | 'author' | 'year' | 'publisher'
   let selectMode = false;
+  let addTargetGroupId = null; // set while picking books to add to an existing custom group
 
   const expandedKeys = new Set();
   const manualSelection = new Set(); // volume ids
@@ -206,6 +207,10 @@
     grid.querySelectorAll('[data-seriecita-author-btn]').forEach((el) => el.remove());
   }
 
+  function clearRemoveButtons(grid) {
+    grid.querySelectorAll('[data-seriecita-remove-btn]').forEach((el) => el.remove());
+  }
+
   // ---- native "select" integration (best-effort) ----
 
   function findSelectButton(card) {
@@ -286,6 +291,72 @@
     chrome.storage.local.set({ seriecitaCustomGroups: customGroups });
   }
 
+  function pruneGroupIfTooSmall(groupId) {
+    const group = customGroups[groupId];
+    if (group && group.volumeIds.length < 2) {
+      delete customGroups[groupId];
+      expandedKeys.delete(`custom:${groupId}`);
+    }
+  }
+
+  function removeFromCustomGroup(groupId, volumeId) {
+    const group = customGroups[groupId];
+    if (!group) return;
+    if (!confirm(`이 책을 "${group.name}"에서 뺄까요? (책 자체는 삭제되지 않습니다)`)) return;
+    group.volumeIds = group.volumeIds.filter((id) => id !== volumeId);
+    pruneGroupIfTooSmall(groupId);
+    saveCustomGroups();
+    const grid = getGrid();
+    if (grid) applyGrouping(grid);
+  }
+
+  function renameCustomGroup(groupId, currentName) {
+    const group = customGroups[groupId];
+    if (!group) return;
+    const newName = prompt('새 이름을 입력하세요.', currentName);
+    if (!newName || !newName.trim()) return;
+    group.name = newName.trim();
+    saveCustomGroups();
+    const grid = getGrid();
+    if (grid) applyGrouping(grid);
+  }
+
+  function startAddingToGroup(groupId) {
+    addTargetGroupId = groupId;
+    selectMode = true;
+    manualSelection.clear();
+    document.body.classList.add('seriecita-select-mode');
+    if (selectModeButton) selectModeButton.dataset.enabled = 'true';
+    refreshCheckboxes();
+    updateSelectBar();
+  }
+
+  function confirmAddToGroup() {
+    if (!addTargetGroupId) return;
+    if (manualSelection.size === 0) {
+      alert('추가할 책을 선택해주세요.');
+      return;
+    }
+    const group = customGroups[addTargetGroupId];
+    if (group) {
+      group.volumeIds = Array.from(new Set([...group.volumeIds, ...manualSelection]));
+      saveCustomGroups();
+    }
+    manualSelection.clear();
+    addTargetGroupId = null;
+    refreshCheckboxes();
+    updateSelectBar();
+    const grid = getGrid();
+    if (grid) applyGrouping(grid);
+  }
+
+  function cancelAddToGroup() {
+    addTargetGroupId = null;
+    manualSelection.clear();
+    refreshCheckboxes();
+    updateSelectBar();
+  }
+
   function ensureSelectCheckboxes(cards) {
     cards.forEach((card) => {
       const cover = card.querySelector('.cover');
@@ -340,7 +411,8 @@
   }
 
   function updateSelectBar() {
-    if (!selectMode || manualSelection.size === 0) {
+    const active = Boolean(addTargetGroupId) || manualSelection.size > 0;
+    if (!selectMode || !active) {
       selectBar?.remove();
       selectBar = null;
       return;
@@ -351,6 +423,23 @@
       document.body.appendChild(selectBar);
     }
     selectBar.innerHTML = '';
+
+    if (addTargetGroupId) {
+      const group = customGroups[addTargetGroupId];
+      const label = document.createElement('span');
+      label.textContent = `"${group?.name || ''}"에 추가할 책 선택 (${manualSelection.size}권)`;
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.textContent = '추가';
+      addBtn.addEventListener('click', confirmAddToGroup);
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = '취소';
+      cancelBtn.addEventListener('click', cancelAddToGroup);
+      selectBar.append(label, addBtn, cancelBtn);
+      return;
+    }
+
     const label = document.createElement('span');
     label.textContent = `${manualSelection.size}권 선택됨`;
     const groupBtn = document.createElement('button');
@@ -380,6 +469,7 @@
       document.body.classList.toggle('seriecita-select-mode', selectMode);
       if (!selectMode) {
         manualSelection.clear();
+        addTargetGroupId = null;
         refreshCheckboxes();
       }
       updateSelectBar();
@@ -470,6 +560,26 @@
     header.append(titleSpan, countSpan, selectAllBtn);
 
     if (entry.custom) {
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'seriecita-rename-group';
+      renameBtn.textContent = '이름 변경';
+      renameBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        renameCustomGroup(entry.groupId, entry.base);
+      });
+
+      const addBooksBtn = document.createElement('button');
+      addBooksBtn.type = 'button';
+      addBooksBtn.className = 'seriecita-add-books';
+      addBooksBtn.textContent = '책 추가';
+      addBooksBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startAddingToGroup(entry.groupId);
+      });
+
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'seriecita-delete-group';
@@ -484,7 +594,8 @@
         const grid = getGrid();
         if (grid) applyGrouping(grid);
       });
-      header.appendChild(deleteBtn);
+
+      header.append(renameBtn, addBooksBtn, deleteBtn);
     }
 
     const collapseBtn = document.createElement('button');
@@ -526,6 +637,20 @@
     return badge;
   }
 
+  function makeRemoveButton(groupId, volumeId) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'seriecita-remove-btn';
+    btn.dataset.seriecitaRemoveBtn = 'true';
+    btn.textContent = '✕';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeFromCustomGroup(groupId, volumeId);
+    });
+    return btn;
+  }
+
   function makeClassifyHeader(label, entries, order) {
     const header = document.createElement('div');
     header.className = 'seriecita-classify-header';
@@ -546,6 +671,7 @@
     clearHeaders(grid);
     clearBadges(grid);
     clearClassifyHeaders(grid);
+    clearRemoveButtons(grid);
     ensureAuthorButtons(cards);
     ensureSelectCheckboxes(cards);
     createClassifyBar();
@@ -590,6 +716,10 @@
               order += ORDER_STEP;
               it.card.style.order = String(order);
               it.card.style.display = '';
+              if (entry.custom) {
+                const itCover = it.card.querySelector('.cover');
+                if (itCover) itCover.appendChild(makeRemoveButton(entry.groupId, it.id));
+              }
             }
           } else {
             rep.card.style.order = String(order);
@@ -620,6 +750,7 @@
     clearBadges(grid);
     clearClassifyHeaders(grid);
     clearAuthorButtons(grid);
+    clearRemoveButtons(grid);
 
     authorFilter = null;
     updateFilterChip();
@@ -633,6 +764,7 @@
     selectBar?.remove();
     selectBar = null;
     selectMode = false;
+    addTargetGroupId = null;
     manualSelection.clear();
     document.body.classList.remove('seriecita-select-mode');
 
