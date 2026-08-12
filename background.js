@@ -72,3 +72,72 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === CHECK_ALARM) checkForUpdate();
 });
+
+const VOLUMES_API = 'https://www.googleapis.com/books/v1/volumes/';
+const FETCH_DELAY_MS = 150;
+let metadataQueue = [];
+let metadataQueueRunning = false;
+let metadataQueueTotal = 0;
+let metadataQueueDone = 0;
+
+function parseYear(publishedDate) {
+  const m = (publishedDate || '').match(/^(\d{4})/);
+  return m ? m[1] : null;
+}
+
+async function fetchOneVolume(id, apiKey) {
+  const url = VOLUMES_API + encodeURIComponent(id) + (apiKey ? `?key=${encodeURIComponent(apiKey)}` : '');
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const info = data.volumeInfo || {};
+  return {
+    publisher: info.publisher || null,
+    year: parseYear(info.publishedDate),
+  };
+}
+
+async function drainMetadataQueue() {
+  if (metadataQueueRunning) return;
+  metadataQueueRunning = true;
+  try {
+    const { seriecitaBooksApiKey } = await chrome.storage.local.get('seriecitaBooksApiKey');
+    while (metadataQueue.length) {
+      const id = metadataQueue.shift();
+      try {
+        const { seriecitaMetaCache = {} } = await chrome.storage.local.get('seriecitaMetaCache');
+        if (!seriecitaMetaCache[id]) {
+          seriecitaMetaCache[id] = await fetchOneVolume(id, seriecitaBooksApiKey);
+          await chrome.storage.local.set({ seriecitaMetaCache });
+        }
+      } catch (e) {
+        console.warn('[Seriecita] metadata fetch failed for', id, e);
+      }
+      metadataQueueDone += 1;
+      await chrome.storage.local.set({
+        seriecitaMetaFetchProgress: { done: metadataQueueDone, total: metadataQueueTotal },
+      });
+      await new Promise((r) => setTimeout(r, FETCH_DELAY_MS));
+    }
+  } finally {
+    metadataQueueRunning = false;
+    metadataQueueTotal = 0;
+    metadataQueueDone = 0;
+  }
+}
+
+async function enqueueMetadata(ids) {
+  const { seriecitaMetaCache = {} } = await chrome.storage.local.get('seriecitaMetaCache');
+  const known = new Set(metadataQueue);
+  const fresh = [...new Set(ids)].filter((id) => id && !seriecitaMetaCache[id] && !known.has(id));
+  if (!fresh.length) return;
+  metadataQueue.push(...fresh);
+  metadataQueueTotal += fresh.length;
+  drainMetadataQueue();
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === 'seriecitaFetchMetadata' && Array.isArray(message.ids)) {
+    enqueueMetadata(message.ids);
+  }
+});
